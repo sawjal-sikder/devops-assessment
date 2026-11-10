@@ -1,0 +1,20 @@
+# Allow only the files required by the production Dockerfile.
+# Git metadata, tests, local env files, credentials, and infrastructure stay out.
+*
+!requirements.txt
+!app/
+!app/**
+
+# Exclude generated and sensitive files even when nested under app/.
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.env
+**/.env.*
+**/.aws/
+**/.venv/
+**/*.log
+**/*.pem
+**/*.key
