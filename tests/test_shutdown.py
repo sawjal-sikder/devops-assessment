@@ -1,4 +1,5 @@
 """Exercise the real server entrypoint and SIGTERM lifecycle."""
+
 import json
 import os
 import signal
@@ -13,15 +14,27 @@ def test_sigterm_shutdown():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
-    env = {**os.environ, "HOST": "127.0.0.1", "PORT": str(port),
-           "ENVIRONMENT": "shutdown-test", "LOG_LEVEL": "INFO"}
-    process = subprocess.Popen([sys.executable, "-m", "app"], env=env,
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    env = {
+        **os.environ,
+        "HOST": "127.0.0.1",
+        "PORT": str(port),
+        "ENVIRONMENT": "shutdown-test",
+        "LOG_LEVEL": "INFO",
+    }
+    process = subprocess.Popen(
+        [sys.executable, "-m", "app"],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     try:
         deadline = time.monotonic() + 10
         while True:
             try:
-                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.2) as response:
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/health", timeout=0.2
+                ) as response:
                     assert response.status == 200
                 break
             except OSError:

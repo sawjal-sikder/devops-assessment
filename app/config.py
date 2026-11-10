@@ -1,4 +1,5 @@
 """Environment-only runtime configuration."""
+
 import os
 from dataclasses import dataclass
 

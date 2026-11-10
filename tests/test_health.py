@@ -12,6 +12,7 @@ def test_not_ready(client, application):
 
 def test_lifespan_resets_readiness(application):
     from fastapi.testclient import TestClient
+
     assert application.state.ready is False
     with TestClient(application):
         assert application.state.ready is True

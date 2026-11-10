@@ -1,8 +1,12 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
+from fastapi import FastAPI, Response  # type: ignore
+from prometheus_client import (  # type: ignore
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    generate_latest,
+)
 
 from app.config import Settings
 from app.metrics import MetricsMiddleware
@@ -22,8 +26,14 @@ def create_app(settings=None):
             app.state.ready = False
             logging.getLogger(__name__).info("application_stopped")
 
-    app = FastAPI(title="DevOps Task", version=settings.version, lifespan=lifespan,
-                  docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        title="DevOps Task",
+        version=settings.version,
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.state.ready = False
     app.state.registry = registry
     app.state.settings = settings
@@ -31,7 +41,11 @@ def create_app(settings=None):
 
     @app.get("/")
     async def root():
-        return {"message": "Hello from DevOps Task!", "status": "running", "version": settings.version}
+        return {
+            "message": "Hello from DevOps Task!",
+            "status": "running",
+            "version": settings.version,
+        }
 
     @app.get("/health")
     async def health(response: Response):

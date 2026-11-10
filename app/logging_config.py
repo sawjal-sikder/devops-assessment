@@ -26,15 +26,23 @@ class JSONFormatter(logging.Formatter):
 
 
 def configure_logging(settings):
-    logging.config.dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {"json": {"()": JSONFormatter, "environment": settings.environment}},
-        "handlers": {"stdout": {"class": "logging.StreamHandler", "stream": "ext://sys.stdout", "formatter": "json"}},
-        "root": {"handlers": ["stdout"], "level": settings.log_level},
-        "loggers": {
-            "uvicorn": {"handlers": [], "propagate": True},
-            "uvicorn.error": {"handlers": [], "propagate": True},
-            "uvicorn.access": {"handlers": [], "propagate": True},
-        },
-    })
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {"json": {"()": JSONFormatter, "environment": settings.environment}},
+            "handlers": {
+                "stdout": {
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                    "formatter": "json",
+                }
+            },
+            "root": {"handlers": ["stdout"], "level": settings.log_level},
+            "loggers": {
+                "uvicorn": {"handlers": [], "propagate": True},
+                "uvicorn.error": {"handlers": [], "propagate": True},
+                "uvicorn.access": {"handlers": [], "propagate": True},
+            },
+        }
+    )

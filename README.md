@@ -106,3 +106,13 @@ larger than `SHUTDOWN_TIMEOUT` when changing these settings.
 
 Implementation references: [Uvicorn server settings](https://uvicorn.dev/settings/)
 and the [Prometheus Python client histogram documentation](https://prometheus.github.io/client_python/instrumenting/histogram/).
+
+## CI/CD workflows
+
+Pull requests run linting, tests with an 85% coverage gate and downloadable reports,
+Dockerfile/ShellCheck linting, and a Trivy image scan that blocks CRITICAL findings.
+Pushes to `main` pass those checks, publish amd64/arm64 images to ECR with commit
+SHA and semantic version tags, and deploy via GitHub OIDC and SSM with health-based
+rollback. See [CI/CD setup](docs/cicd.md) for required GitHub variables, IAM policies,
+EC2 prerequisites, tagging, rollback behavior, and deployment evidence. No GitHub
+secrets or long-lived AWS access keys are required.
