@@ -20,8 +20,8 @@ docker pull "$image"
 # Keep the current container untouched if the pull fails.
 docker rm -f devops-task-previous 2>/dev/null || true
 switched=false
-# Invoked indirectly by the EXIT trap.
-# shellcheck disable=SC2329
+# Invoked indirectly by the EXIT trap; older ShellCheck versions miss this call.
+# shellcheck disable=SC2317,SC2329
 rollback_on_failure() {
   status=$?
   trap - EXIT
@@ -34,7 +34,7 @@ rollback_on_failure() {
   fi
   exit "$status"
 }
-trap rollback_on_failure EXIT
+trap 'rollback_on_failure' EXIT
 
 if docker container inspect devops-task >/dev/null 2>&1; then
   docker rename devops-task devops-task-previous
