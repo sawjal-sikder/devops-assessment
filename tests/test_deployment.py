@@ -24,6 +24,8 @@ status = 0
 if command == "curl":
     current = state.get("devops-task", {})
     status = 0 if current.get("running") and current.get("image") != os.getenv("FAIL_IMAGE") else 22
+elif args[0] == "info":
+    print(os.getenv("FAKE_LOG_DRIVER", "json-file"))
 elif args[0] == "pull":
     status = 1 if os.getenv("FAIL_PULL") else 0
 elif args[:2] == ["container", "inspect"]:
@@ -40,6 +42,8 @@ elif args[0] == "stop":
 elif args[0] == "start":
     state[args[-1]]["running"] = True
 elif args[0] == "run":
+    if "--log-driver" in args and args[args.index("--log-driver") + 1] == "awslogs":
+        assert "max-size=10m" not in args
     if os.getenv("FAIL_RUN"):
         status = 1
     else:
@@ -51,8 +55,9 @@ sys.exit(status)
 """
 
 
+@pytest.mark.parametrize("log_driver", ["json-file", "awslogs"])
 @pytest.mark.parametrize("failure", [None, "health", "pull", "run", "first-health"])
-def test_deployment_and_rollback(tmp_path, failure):
+def test_deployment_and_rollback(tmp_path, failure, log_driver):
     state_file = tmp_path / "state.json"
     initial = (
         {} if failure == "first-health" else {"devops-task": {"image": PREVIOUS, "running": True}}
@@ -66,6 +71,7 @@ def test_deployment_and_rollback(tmp_path, failure):
         **os.environ,
         "PATH": f"{tmp_path}:{os.environ['PATH']}",
         "FAKE_STATE": str(state_file),
+        "FAKE_LOG_DRIVER": log_driver,
         "DEPLOY_LOCK_FILE": str(tmp_path / "deploy.lock"),
         "SMOKE_ATTEMPTS": "2",
         "SMOKE_INTERVAL": "0",

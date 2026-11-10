@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Amazon Linux 2023 includes SSM Agent; no static credentials are installed.
+dnf install -y docker awscli-2 curl-minimal util-linux
+install -d -m 0755 /etc/docker /var/lib/devops-task
+cat > /etc/docker/daemon.json <<'JSON'
+{
+  "log-driver": "awslogs",
+  "log-opts": {
+    "awslogs-region": "${region}",
+    "awslogs-group": "${log_group}",
+    "awslogs-create-group": "false",
+    "mode": "non-blocking",
+    "max-buffer-size": "4m"
+  }
+}
+JSON
+systemctl enable --now docker amazon-ssm-agent
+
+cat > /usr/local/bin/devops-bootstrap <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+export AWS_DEFAULT_REGION='${region}'
+work_dir=$(mktemp -d)
+export DOCKER_CONFIG="$work_dir"
+trap 'rm -rf -- "$work_dir"' EXIT
+aws ecr get-login-password | docker login --username AWS --password-stdin '${registry}'
+docker pull '${image}'
+docker rm -f devops-task 2>/dev/null || true
+docker run -d --name devops-task --restart unless-stopped --stop-timeout 30 \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --cpus 0.5 --memory 128m --pids-limit 64 \
+  -p 8080:8080 -e PORT=8080 -e LOG_LEVEL=INFO -e ENVIRONMENT='${environment}' \
+  '${image}'
+for ((attempt=1; attempt<=30; attempt++)); do
+  if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8080/health; then
+    touch /var/lib/devops-task/bootstrapped
+    exit 0
+  fi
+  sleep 2
+done
+exit 1
+SCRIPT
+chmod 0755 /usr/local/bin/devops-bootstrap
+cat > /etc/systemd/system/devops-bootstrap.service <<'UNIT'
+[Unit]
+Description=Initial DevOps Task container deployment
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/devops-task/bootstrapped
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/devops-bootstrap
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now devops-bootstrap.service

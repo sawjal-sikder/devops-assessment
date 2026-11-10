@@ -1,0 +1,19 @@
+# Optional: requires an ingress controller. The default local path uses port-forward.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-task
+  namespace: devops-task
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: devops.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-task
+                port:
+                  name: http

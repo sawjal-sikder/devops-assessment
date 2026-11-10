@@ -245,3 +245,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Local Terraform backend settings, kubeconfigs, and secret inputs
+*.tfbackend
+kubeconfig*
+*.secret.env
+k8s/*secret.local.yaml

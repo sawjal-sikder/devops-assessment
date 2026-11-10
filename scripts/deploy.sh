@@ -44,12 +44,19 @@ else
   switched=true
 fi
 
+# Terraform configures daemon-wide CloudWatch options on EC2.
+# json-file rotation options are invalid for the awslogs driver.
+logging_args=(--log-driver json-file --log-opt max-size=10m --log-opt max-file=3)
+if [[ "$(docker info --format '{{.LoggingDriver}}')" == awslogs ]]; then
+  logging_args=(--log-driver awslogs)
+fi
+
 docker run -d --name devops-task \
   --restart unless-stopped --stop-timeout 30 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   --cap-drop ALL --security-opt no-new-privileges:true \
   --cpus 0.5 --memory 128m --pids-limit 64 \
-  --log-opt max-size=10m --log-opt max-file=3 \
+  "${logging_args[@]}" \
   -p 8080:8080 \
   -e PORT=8080 -e ENVIRONMENT=production -e LOG_LEVEL=INFO \
   "$image"

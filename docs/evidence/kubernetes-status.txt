@@ -1,0 +1,16 @@
+Client Version: v1.35.0
+Kustomize Version: v5.7.1
+Server Version: v1.35.0
+NAME                          READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/devops-task   2/2     2            2           2m47s
+
+NAME                               READY   STATUS      RESTARTS   AGE
+pod/devops-task-58c5c6c46c-4gtrj   1/1     Running     0          2m15s
+pod/devops-task-58c5c6c46c-qlgvh   1/1     Running     0          2m6s
+pod/rollout-probe                  0/1     Completed   0          2m38s
+
+NAME                                              REFERENCE                TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/devops-task   Deployment/devops-task   cpu: 4%/70%   2         4         2          2m47s
+NAME                           CPU(cores)   MEMORY(bytes)   
+devops-task-58c5c6c46c-4gtrj   4m           36Mi            
+devops-task-58c5c6c46c-qlgvh   4m           36Mi            

@@ -93,3 +93,20 @@ jobs:
           name: vulnerability-report
           path: trivy-report.txt
           retention-days: 14
+
+
+  terraform:
+    name: Terraform offline validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.14.0'
+      - run: terraform fmt -check -recursive terraform
+      - run: terraform -chdir=terraform init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=terraform validate
+      - run: terraform -chdir=terraform test -no-color
+      - run: terraform -chdir=terraform/bootstrap init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=terraform/bootstrap validate

@@ -1,0 +1,9 @@
+environment         = "production"
+aws_region          = "us-east-1"
+instance_type       = "t3.micro"
+ecr_repository_name = "devops-task"
+image               = "123456789012.dkr.ecr.us-east-1.amazonaws.com/devops-task@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+allowed_cidrs       = ["203.0.113.10/32"]
+log_retention_days  = 30
+vpc_cidr            = "10.43.0.0/16"
+subnet_cidr         = "10.43.1.0/24"

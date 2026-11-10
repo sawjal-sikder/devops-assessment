@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-task-config
+  namespace: devops-task
+data:
+  HOST: "0.0.0.0"
+  PORT: "8080"
+  ENVIRONMENT: "local-kubernetes"
+  LOG_LEVEL: "INFO"
+  SHUTDOWN_TIMEOUT: "20"

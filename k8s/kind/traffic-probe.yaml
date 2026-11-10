@@ -1,0 +1,40 @@
+# Temporary in-cluster probe used by scripts/k8s_demo.sh, not by the app deployment.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rollout-probe
+  namespace: devops-task
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: probe
+      image: devops-task:1.0.0
+      imagePullPolicy: IfNotPresent
+      command: ["python", "-u", "/probe/probe.py"]
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+      securityContext:
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+      volumeMounts:
+        - name: probe
+          mountPath: /probe
+          readOnly: true
+  volumes:
+    - name: probe
+      configMap:
+        name: rollout-probe

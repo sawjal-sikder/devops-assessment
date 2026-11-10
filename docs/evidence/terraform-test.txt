@@ -1,0 +1,9 @@
+tests/infrastructure.tftest.hcl... in progress
+  run "staging_security_and_logging"... pass
+  run "production_environment"... pass
+  run "reject_public_ingress"... pass
+  run "reject_mutable_image"... pass
+tests/infrastructure.tftest.hcl... tearing down
+tests/infrastructure.tftest.hcl... pass
+
+Success! 4 passed, 0 failed.
