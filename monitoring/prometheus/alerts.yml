@@ -1,0 +1,35 @@
+groups:
+  - name: devops-task-alerts
+    rules:
+      - alert: AppInstanceDown
+        expr: up{job="app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application scrape target is unavailable"
+          description: "Prometheus could not scrape {{ $labels.instance }} for one minute. Check app logs, container state, and its /health endpoint."
+      - alert: HighApplicationErrorRate
+        expr: app:http_errors:ratio5m > 0.05 and app:http_requests:rate5m > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Application error ratio is above 5%"
+          description: "More than 5% of non-probe requests return HTTP >= 400, with over 1 request/second for five minutes. Use the Application dashboard logs to distinguish client errors from server errors."
+      - alert: HostDiskUsageHigh
+        expr: (1 - node_filesystem_avail_bytes{job="node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|nsfs",mountpoint!~"/host.*"} / node_filesystem_size_bytes{job="node",fstype!~"tmpfs|devtmpfs|overlay|squashfs|nsfs",mountpoint!~"/host.*"}) > 0.80 and node_filesystem_readonly{job="node"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host filesystem has less than 20% free capacity"
+          description: "{{ $labels.mountpoint }} has stayed above 80% usage for ten minutes. Inspect disk growth and monitoring volume retention."
+      - alert: ContainerMemoryNearLimit
+        expr: (container_memory_working_set_bytes{job="cadvisor",service!=""} / container_spec_memory_limit_bytes{job="cadvisor",service!=""}) > 0.90 and container_spec_memory_limit_bytes{job="cadvisor",service!=""} > 0 and container_spec_memory_limit_bytes{job="cadvisor",service!=""} < 1e15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container working-set memory is above 90% of its limit"
+          description: "{{ $labels.name }} has less than 10% memory headroom for five minutes. Check for a leak or adjust its measured resource budget."

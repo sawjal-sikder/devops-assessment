@@ -1,0 +1,64 @@
+logging {
+  level = "info"
+  format = "json"
+}
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+// Collect every running container, including those outside this Compose project.
+// Stable service/project labels avoid a fresh indexed stream for each container ID.
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    target_label = "service"
+    replacement = "docker"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex = "(.+)"
+    target_label = "service"
+  }
+  rule {
+    target_label = "project"
+    replacement = "standalone"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex = "(.+)"
+    target_label = "project"
+  }
+}
+
+loki.source.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.containers.output
+  forward_to = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
+  stage.match {
+    selector = "{service=\"app\",project=\"devops-monitoring\"}"
+    stage.json {
+      expressions = {
+        level = "level",
+        path = "path",
+        status_code = "status_code",
+      }
+    }
+    // Only the bounded log-level label is indexed; path/status stay in JSON.
+    stage.labels {
+      values = { level = "" }
+    }
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

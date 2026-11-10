@@ -1,0 +1,89 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 1m
+tests:
+  - name: app unavailable for one minute
+    interval: 1m
+    input_series:
+      - series: 'up{job="app",instance="app:8080"}'
+        values: '0x3'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: AppInstanceDown
+        exp_alerts:
+          - exp_labels: {job: app, instance: 'app:8080', severity: critical}
+            exp_annotations:
+              summary: "Application scrape target is unavailable"
+              description: "Prometheus could not scrape app:8080 for one minute. Check app logs, container state, and its /health endpoint."
+  - name: sustained application errors
+    interval: 1m
+    input_series:
+      - series: app:http_errors:ratio5m
+        values: '0.1x7'
+      - series: app:http_requests:rate5m
+        values: '2x7'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: HighApplicationErrorRate
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: HighApplicationErrorRate
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "Application error ratio is above 5%"
+              description: "More than 5% of non-probe requests return HTTP >= 400, with over 1 request/second for five minutes. Use the Application dashboard logs to distinguish client errors from server errors."
+  - name: host filesystem almost full
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{job="node",mountpoint="/",fstype="ext4",device="/dev/test"}'
+        values: '10x12'
+      - series: 'node_filesystem_size_bytes{job="node",mountpoint="/",fstype="ext4",device="/dev/test"}'
+        values: '100x12'
+      - series: 'node_filesystem_readonly{job="node",mountpoint="/",fstype="ext4",device="/dev/test"}'
+        values: '0x12'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: HostDiskUsageHigh
+        exp_alerts:
+          - exp_labels: {job: node, mountpoint: '/', fstype: ext4, device: /dev/test, severity: warning}
+            exp_annotations:
+              summary: "Host filesystem has less than 20% free capacity"
+              description: "/ has stayed above 80% usage for ten minutes. Inspect disk growth and monitoring volume retention."
+  - name: container near its real memory limit
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{job="cadvisor",service="app",name="demo-app"}'
+        values: '95x7'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",service="app",name="demo-app"}'
+        values: '100x7'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ContainerMemoryNearLimit
+        exp_alerts:
+          - exp_labels: {job: cadvisor, service: app, name: demo-app, severity: warning}
+            exp_annotations:
+              summary: "Container working-set memory is above 90% of its limit"
+              description: "demo-app has less than 10% memory headroom for five minutes. Check for a leak or adjust its measured resource budget."
+  - name: low traffic does not trigger the error ratio alert
+    interval: 1m
+    input_series:
+      - series: app:http_errors:ratio5m
+        values: '0.5x7'
+      - series: app:http_requests:rate5m
+        values: '0.5x7'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HighApplicationErrorRate
+        exp_alerts: []
+  - name: unbounded sentinel memory limit is excluded
+    interval: 1m
+    input_series:
+      - series: 'container_memory_working_set_bytes{job="cadvisor",service="app",name="unbounded"}'
+        values: '9e18x7'
+      - series: 'container_spec_memory_limit_bytes{job="cadvisor",service="app",name="unbounded"}'
+        values: '9e18x7'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ContainerMemoryNearLimit
+        exp_alerts: []

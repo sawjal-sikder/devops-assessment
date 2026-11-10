@@ -277,3 +277,236 @@ and a supported network policy provider. Promote signed/scanned image digests
 through environment overlays and retain rollout evidence. AWS documents the
 [IRSA and Pod Identity options](https://docs.aws.amazon.com/eks/latest/userguide/service-accounts.html);
 Kubernetes documents the [rolling update controls](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
+
+## Step 5: Local monitoring and logging
+
+The standalone `docker-compose.monitoring.yml` runs the app and all six mandatory
+components: **Prometheus, Grafana, Loki, Grafana Alloy, Node Exporter, and cAdvisor**.
+Use it by itself, rather than merging it with the main Compose file (which
+publishes the app's port). On native Linux with Docker Engine:
+
+```sh
+# If .env does not exist yet:
+cp -n .env.example .env
+chmod 600 .env
+# Edit .env and set a unique GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD.
+# Both are required; there are no default admin credentials in Compose.
+docker compose -f docker-compose.monitoring.yml up --build -d
+```
+
+Open **http://127.0.0.1:3000** and sign in with your `.env` credentials. This
+workspace's local `.env` has a generated password; it is ignored by Git. In
+Grafana open **Dashboards → DevOps Task**. Data sources and all three dashboards
+are provisioned from `monitoring/grafana/`; no UI setup or dashboard import is
+needed. Allow 30–60 seconds for discovery/scrapes and rate calculations.
+
+Only Grafana publishes a host port, bound to loopback. The app, Prometheus, Loki,
+Alloy, Node Exporter, and cAdvisor use an `internal: true` Docker network with no
+published ports. Grafana also joins a frontend bridge so Docker can forward its
+localhost port. Metrics and logs stay on the internal network. To verify the app
+without publishing it:
+
+```sh
+docker compose -f docker-compose.monitoring.yml exec -T app python -c 'import urllib.request; print(urllib.request.urlopen("http://app:8080/health").read().decode())'
+```
+
+Image pins are explicit in Compose: Prometheus `v3.16.0`, Grafana `13.3.0`, Loki
+`3.7.9`, Alloy `v1.21.3`, Node Exporter `v1.12.1`, and cAdvisor `0.60.6`.
+The local app uses `devops-task:1.0.0`. Grafana has a 1 GiB limit to allow dashboard-rendering headroom.
+All seven containers have memory limits, a restart policy, and rotated Docker JSON logs (10 MB × 3 files per container).
+This monitoring deployment deliberately uses Docker `json-file` logging; the AWS
+EC2 deployment uses CloudWatch instead.
+
+### Collection and retention
+
+Prometheus scrapes every 15 seconds: the app's `/metrics`, Node Exporter, and
+cAdvisor, plus Prometheus/Loki/Alloy self-metrics. Rules evaluate every 15 seconds.
+Prometheus retains **7 days**, with a **2 GB** TSDB retention-size threshold;
+whichever threshold is reached first expires older blocks. The size threshold is
+not a hard filesystem quota: WAL/head data and block cleanup need extra space.
+
+Loki uses a single-node filesystem/TSDB v13 store with **168-hour (7-day)** retention
+and 24-hour index periods. Its compactor runs every 10 minutes, with retention
+enabled and a two-hour deletion delay; physical deletion is asynchronous. Loki
+has no disk-size cap here, so watch host filesystem usage. Both retain data in
+named volumes. Grafana's database and Alloy's Docker log positions are also
+persisted in named volumes. See the
+[Loki retention documentation](https://grafana.com/docs/loki/latest/operations/storage/retention/).
+
+Alloy uses Docker service discovery without a project filter and tails **all
+running containers**, including containers outside this Compose project. Its
+Docker source unwraps the Docker transport; the JSON stage parses the app's
+original structured message. Do not add another Docker envelope parser to this
+source. Indexed log labels are stable `project`, `service`, and (for this app)
+`level`. Loki may also derive the bounded `service_name` label. Standalone
+containers fall back to `project="standalone",service="docker"`. Container IDs,
+request IDs, raw URLs, timestamps, and messages are not indexed labels.
+
+App `level` has a small bounded set of values. Request `path` and `status_code`
+remain in the original JSON and can be extracted with LogQL `| json` at query time;
+this avoids a stream for every path/status combination. The app already normalizes
+unknown routes to `unmatched`. A future route containing user IDs should likewise
+use a route template. Prometheus keeps only the useful Compose project/service
+labels from cAdvisor's container labels. This limits label cardinality while
+preserving per-container metrics through cAdvisor's `name`/`id` series.
+See [Alloy's Docker log source](https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.docker/).
+
+### Provisioned dashboards and screenshots
+
+These are actual screenshots from this local stack, not mockups. The sample
+traffic included 225 intentional HTTP 404 responses among 3,367 requests; no
+server failure was injected. The dashboards count HTTP >= 400 as errors, matching
+the app's metrics. Probe and scrape traffic are excluded from application rate,
+error, and latency panels. Percentiles are histogram estimates with the app's
+configured buckets, not exact latency samples.
+
+**Application:** request rate, error percentage, errors/second by response status,
+p50/p95/p99 latency, and scrape availability. Its Loki failed-request/exception log panel is alongside the
+latency/error metrics so the same time window can be investigated.
+
+![Application metrics and correlated JSON logs](docs/screenshots/application.png)
+
+**Host:** CPU utilization, available-memory utilization, filesystem usage/free
+space, disk I/O, and network throughput from Node Exporter.
+
+![Host metrics from Node Exporter](docs/screenshots/host.png)
+
+**Containers:** per-container CPU cores, working-set memory, actual configured
+memory limit, memory as a percentage of that limit, and network throughput from
+cAdvisor. All stack containers have finite limits; zero/unbounded sentinel limits
+are excluded from the percentage panel.
+
+![Container CPU and memory relative to limits](docs/screenshots/containers.png)
+
+### Alert rules and threshold choices
+
+Four Prometheus alerts live in `monitoring/prometheus/alerts.yml`. Recording rules
+in `rules.yml` compute five-minute application rates. These are starting thresholds
+for this small service, to be tuned against real traffic and service objectives.
+
+| Alert | Condition | `for` | Reasoning |
+| --- | --- | --- | --- |
+| AppInstanceDown | App scrape `up == 0` | 1 minute | Four missed 15-second scrapes indicate sustained unavailability while allowing a short restart or transient connection failure. `/health` can then distinguish app readiness from scrape access problems. |
+| HighApplicationErrorRate | HTTP >= 400 exceeds 5% over five minutes, with > 1 request/second | 5 minutes | A sustained error fraction merits investigation; the traffic floor prevents one failed low-volume request from paging. Includes client errors, so inspect status codes before concluding there is a server bug. Health/scrape requests are excluded. |
+| HostDiskUsageHigh | Writable real filesystem exceeds 80% usage, based on available bytes | 10 minutes | Leaves approximately 20% headroom for logs/TSDB/WAL growth and filters brief temporary writes. Pseudo-filesystems and read-only mounts are excluded. |
+| ContainerMemoryNearLimit | Working set exceeds 90% of an exported finite memory limit | 5 minutes | Less than 10% headroom raises OOM risk. Five minutes avoids most short allocation/cache spikes; zero and unbounded sentinel limits are excluded. |
+
+The error alert uses both a five-minute rate window and a five-minute pending
+period, so a short demonstration spike need not reach firing state. The rules are
+loaded and evaluated by Prometheus; notifications are **not dispatched** without
+an Alertmanager/receiver, which is outside this six-component stack. Inspect rule
+state through Grafana Explore using the Prometheus expression `ALERTS`, or through
+the authenticated datasource proxy:
+`http://127.0.0.1:3000/api/datasources/proxy/uid/prometheus/api/v1/rules`.
+
+Rule unit tests cover all four firing conditions and confirm the high-error alert
+stays pending before its duration elapses. They also verify low-traffic and
+unbounded-memory exclusions:
+
+```sh
+docker compose -f docker-compose.monitoring.yml exec -T prometheus promtool check config /etc/prometheus/prometheus.yml
+docker compose -f docker-compose.monitoring.yml exec -T -w /etc/prometheus prometheus promtool test rules alerts.test.yml
+```
+
+### Finding the cause of an error spike
+
+1. On **Application**, drag over the spike to select its time interval. Compare
+   request volume, error percentage, and the status-code series. Rising 404s often
+   indicate a client/route problem; rising 500s point toward request processing.
+   Compare p95/p99 latency to see whether errors coincide with slower requests.
+2. Read the adjacent Loki panel for that same interval. Open it in Explore for
+   filters. Find all failed requests with:
+
+   ```logql
+   {project="devops-monitoring",service="app"} | json | status_code >= 400
+   ```
+
+   Narrow to a route using an extracted field (a query filter, not an indexed path
+   label):
+
+   ```logql
+   {project="devops-monitoring",service="app"} | json | path="unmatched" | status_code=404
+   ```
+
+   For exceptions or application error messages, use:
+
+   ```logql
+   {project="devops-monitoring",service="app",level="ERROR"} | json
+   ```
+
+   A completed failed request is currently logged at INFO with its `status_code`,
+   so filtering only `level="ERROR"` would miss expected 4xx responses. Unhandled
+   exceptions produce separate ERROR logs with an exception field. In the sample
+   screenshots, the deliberate missing route produces `path="unmatched"` and
+   `status_code=404`; this is a controlled client error, not an application crash.
+3. Open **Containers** at the same time range. Check whether app CPU saturated or
+   working-set memory approached its limit, and compare the other containers.
+   Check container restart/state using `docker compose -f
+   docker-compose.monitoring.yml ps` and logs if metrics disappear.
+4. Open **Host** to correlate host CPU, available memory, disk space/I/O, and
+   network throughput. If multiple containers struggle together, host pressure is
+   more likely than an isolated request handler problem.
+5. For missing logs, inspect Alloy's logs and Loki readiness; for missing metrics,
+   query `up` in Grafana Explore and inspect exporter/Prometheus logs with
+   `docker compose -f docker-compose.monitoring.yml logs --tail=100 SERVICE`.
+   Apply the appropriate app/config/resource fix and confirm error rate and
+   latency return to baseline. Keep the same time window as incident evidence.
+
+To reproduce the local spike and check the full collection path:
+
+```sh
+docker compose -f docker-compose.monitoring.yml exec -T app python - --duration 180 < scripts/monitoring_traffic.py
+python3 scripts/verify_monitoring.py
+```
+
+The verifier uses environment variables or the ignored `.env` to authenticate to
+Grafana. It checks all six scrape targets, every dashboard metric expression,
+provisioning status, logs from all seven containers, JSON/status filtering, and
+healthy alert rules. [Captured verification output](docs/evidence/monitoring.txt)
+is included. CI validates Compose, dashboard JSON, all three collector configs,
+alert tests, and shell scripts. Screenshot layouts may change across Grafana
+versions; committed JSON remains the source of truth.
+
+### Host access and security boundaries
+
+| Component | Host access granted | Purpose and limits |
+| --- | --- | --- |
+| Node Exporter | Host PID namespace; `/:/host:ro,rslave`; no added capabilities; read-only root filesystem and a 1 MB `/textfile` tmpfs | Reads the host's proc/sys/filesystem data. `rslave` lets host mount changes be observed without propagating container mounts back. Host PID access exposes process metadata, so this is a trusted observer. |
+| cAdvisor | `privileged: true`; read-only mounts of `/` at `/rootfs`, `/sys`, `/var/run`, and `/var/lib/docker` | Reads cgroups, container metadata/socket, and storage information on this Linux/cgroup-v2 host. Privileged mode grants broad kernel/device access and is a local assessment convenience, not a strong isolation boundary. No `/dev/kmsg` or `/dev/disk` mount was needed for the required CPU/memory metrics. |
+| Alloy | Runs as root with `/var/run/docker.sock:ro` | Docker discovery and log-stream access for all containers. A read-only socket mount does **not** make Docker's API read-only; possession of this socket can control Docker and is effectively host-level authority. |
+
+Node Exporter's normal network collector would observe the exporter's bridge
+namespace. To keep its HTTP endpoint off the host while collecting actual **host**
+network usage, `monitoring/node-exporter/entrypoint.sh` reads
+`/host/proc/1/net/dev` every five seconds and exposes counters through the standard
+Node Exporter textfile collector. The dashboard uses these
+`node_host_network_*_bytes_total` counters, excluding loopback/Docker bridge/veth
+interfaces to avoid repeatedly counting the same traffic. CPU/memory/disk metrics
+use Node Exporter's regular collectors with the host proc/sys/rootfs paths.
+`node_textfile_scrape_error` and the textfile modification time help diagnose a
+failed collector. No host-network mode or extra published exporter port is used.
+
+These mounts expose host metadata, files, and Docker logs. Run this trusted stack
+on a dedicated development Linux host. Docker Desktop reports metrics for its
+Linux VM, not the macOS/Windows host; rootless Docker or different storage paths
+may require mount/permission changes. For a shared/production environment, reduce
+cAdvisor privileges after testing on that platform, replace direct Docker socket
+access with an API-filtering proxy, and protect Grafana with TLS/authentication and
+Loki with an authenticating gateway. Loki authentication is disabled only because
+it has no public endpoint in this isolated local setup. Do not put credentials
+or sensitive request payloads in application logs.
+
+Grafana initializes admin credentials from the environment on first startup; its
+persisted database retains password changes. Merely editing `.env` does not rotate
+an existing admin account—use Grafana's account/admin password-reset procedure.
+`.env` must remain ignored and readable only by its owner.
+
+Stop the stack while retaining metrics/logs/dashboards:
+
+```sh
+docker compose -f docker-compose.monitoring.yml down
+```
+
+For a deliberate complete local reset, append `--volumes`; this permanently deletes
+this stack's metrics, logs, Grafana database, and Alloy positions. Save evidence
+first. The application-only Compose setup remains available separately.

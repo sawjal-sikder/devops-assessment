@@ -1,0 +1,7 @@
+Scrape targets: all 6 UP (app, node, cAdvisor, Prometheus, Loki, Alloy)
+Dashboard Application: provisioned; all metric queries return data
+Dashboard Containers: provisioned; all metric queries return data
+Dashboard Host: provisioned; all metric queries return data
+Loki: logs present from all 7 stack containers
+Loki: app JSON level label and numeric status-code filters verified
+Prometheus: all 4 alert rules loaded and healthy

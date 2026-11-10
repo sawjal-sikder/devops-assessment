@@ -62,7 +62,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes shellcheck
-          find scripts -type f -name '*.sh' -size +0c -print0 | xargs -0 -r shellcheck --severity=style
+          find scripts monitoring -type f -name '*.sh' -size +0c -print0 | xargs -0 -r shellcheck --severity=style
 
   image:
     name: Build and scan image
@@ -110,3 +110,23 @@ jobs:
       - run: terraform -chdir=terraform test -no-color
       - run: terraform -chdir=terraform/bootstrap init -backend=false -input=false -lockfile=readonly
       - run: terraform -chdir=terraform/bootstrap validate
+
+
+  monitoring:
+    name: Monitoring configuration and alert tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose configuration
+        run: GRAFANA_ADMIN_USER=ci-validation GRAFANA_ADMIN_PASSWORD="$(openssl rand -hex 24)" docker compose -f docker-compose.monitoring.yml config --quiet
+      - name: Prometheus configuration
+        run: docker run --rm --entrypoint promtool -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" prom/prometheus:v3.16.0 check config /etc/prometheus/prometheus.yml
+      - name: Alert rule unit tests
+        run: docker run --rm --entrypoint promtool -w /etc/prometheus -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" prom/prometheus:v3.16.0 test rules alerts.test.yml
+      - name: Alloy configuration
+        run: docker run --rm -v "$PWD/monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro" grafana/alloy:v1.21.3 validate /etc/alloy/config.alloy
+      - name: Loki configuration
+        run: docker run --rm -v "$PWD/monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro" grafana/loki:3.7.9 -config.file=/etc/loki/loki-config.yml -verify-config=true
+      - name: Dashboard JSON
+        run: python3 -c 'import json, pathlib; [json.loads(p.read_text()) for p in pathlib.Path("monitoring/grafana/dashboards").glob("*.json")]'

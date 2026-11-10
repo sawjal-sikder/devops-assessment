@@ -1,0 +1,9 @@
+groups:
+  - name: application-recordings
+    rules:
+      - record: app:http_requests:rate5m
+        expr: sum(rate(http_requests_total{job="app",path!~"/health|/metrics"}[5m])) or vector(0)
+      - record: app:http_errors:rate5m
+        expr: sum(rate(http_errors_total{job="app",path!~"/health|/metrics"}[5m])) or vector(0)
+      - record: app:http_errors:ratio5m
+        expr: app:http_errors:rate5m / clamp_min(app:http_requests:rate5m, 0.000001)

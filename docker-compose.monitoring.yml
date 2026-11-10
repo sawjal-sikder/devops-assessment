@@ -1,0 +1,156 @@
+# Standalone local stack: do not merge with docker-compose.yml (which publishes 8080).
+name: devops-monitoring
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    image: devops-task:1.0.0
+    build:
+      context: .
+      args:
+        APP_VERSION: ${APP_VERSION:-1.0.0}
+    environment:
+      PORT: "8080"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ENVIRONMENT: monitoring
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      SHUTDOWN_TIMEOUT: "20"
+    networks: [monitoring]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 0.5
+    mem_limit: 128m
+    logging: *logging
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=2GB
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    networks: [monitoring]
+    restart: unless-stopped
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  grafana:
+    image: grafana/grafana:13.3.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks: [monitoring, frontend]
+    restart: unless-stopped
+    mem_limit: 1g
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  loki:
+    image: grafana/loki:3.7.9
+    command: [-config.file=/etc/loki/loki-config.yml]
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks: [monitoring]
+    restart: unless-stopped
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  alloy:
+    image: grafana/alloy:v1.21.3
+    user: "0:0" # Docker socket access; see README security notes.
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    networks: [monitoring]
+    restart: unless-stopped
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    entrypoint: ["/bin/sh", "/etc/node-exporter/entrypoint.sh"]
+    command:
+      - --collector.textfile.directory=/textfile
+      - --no-collector.netdev
+      - --no-collector.netstat
+      - --no-collector.sockstat
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|var/lib/containerd/.+)($$|/)
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+      - ./monitoring/node-exporter/entrypoint.sh:/etc/node-exporter/entrypoint.sh:ro
+    networks: [monitoring]
+    restart: unless-stopped
+    mem_limit: 128m
+    tmpfs: ["/textfile:size=1m,mode=1777"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging: *logging
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.60.6
+    command:
+      - --docker_only=true
+      - --store_container_labels=false
+      - --whitelisted_container_labels=com.docker.compose.service,com.docker.compose.project
+      - --housekeeping_interval=15s
+      - --disable_metrics=percpu,process,sched,tcp,udp,hugetlb,referenced_memory,resctrl
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks: [monitoring]
+    restart: unless-stopped
+    mem_limit: 256m
+    logging: *logging
+
+networks:
+  monitoring:
+    internal: true
+  frontend:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alloy-data:
