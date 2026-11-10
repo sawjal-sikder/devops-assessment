@@ -2,7 +2,7 @@ name: Publish and deploy
 
 on:
   push:
-    branches: [main]
+    branches: [production]
 
 permissions:
   contents: read
@@ -21,6 +21,7 @@ jobs:
   release:
     name: Publish multi-architecture image and deploy through SSM
     needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
     runs-on: ubuntu-24.04
     environment: production
     timeout-minutes: 40
@@ -45,7 +46,7 @@ jobs:
           : "${EC2_INSTANCE_ID:?Set production variable EC2_INSTANCE_ID}"
           version=$(cat VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          # A unique semantic prerelease version for every main build and rerun.
+          # A unique semantic prerelease version for every production build and rerun.
           echo "tag=${version}-build.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - uses: aws-actions/configure-aws-credentials@v4
         with:

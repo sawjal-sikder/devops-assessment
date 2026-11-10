@@ -67,7 +67,7 @@ Use Python 3.14 (the container uses 3.14.4):
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 pytest -q
 PORT=8080 LOG_LEVEL=INFO ENVIRONMENT=development python -m app
 ```
@@ -81,12 +81,13 @@ Start with `python -m app` to apply the environment-based server and logging set
 
 The multi-stage Dockerfile installs runtime dependencies into a virtual environment
 and copies it and the application into an Alpine runtime. Both stages pin Python
-3.14.4 / Alpine 3.23 by version and SHA-256 digest. Development dependencies and
-repository files are excluded from the build context by an allowlist `.dockerignore`.
+3.14.4 / Alpine 3.23 by version and SHA-256 digest. The shared `requirements.txt` includes application, test, and lint dependencies;
+all are installed in the image. Other repository files are excluded from the
+build context by an allowlist `.dockerignore`.
 The image runs as UID/GID `10001:10001`, has OCI metadata, a Python standard-library
 health probe, and an exec-form entrypoint so SIGTERM reaches Uvicorn directly.
 
-**Measured final image size: 118,100,605 bytes (118.1 MB / 112.63 MiB), linux/amd64.**
+**Measured final image size: 192,217,941 bytes (192.2 MB / 183.31 MiB), linux/amd64.**
 This is the local image size reported by Docker, not compressed registry transfer
 size. Architecture and dependency updates can change it. Reproduce the measurement:
 
@@ -111,8 +112,26 @@ and the [Prometheus Python client histogram documentation](https://prometheus.gi
 
 Pull requests run linting, tests with an 85% coverage gate and downloadable reports,
 Dockerfile/ShellCheck linting, and a Trivy image scan that blocks CRITICAL findings.
-Pushes to `main` pass those checks, publish amd64/arm64 images to ECR with commit
+Pushes to `production` pass those checks, publish amd64/arm64 images to ECR with commit
 SHA and semantic version tags, and deploy via GitHub OIDC and SSM with health-based
 rollback. See [CI/CD setup](docs/cicd.md) for required GitHub variables, IAM policies,
 EC2 prerequisites, tagging, rollback behavior, and deployment evidence. No GitHub
 secrets or long-lived AWS access keys are required.
+
+
+## Development and production branches
+
+Use `feature/*` → pull request into `development` → pull request into `production`.
+
+| Event | Checks | Publish and AWS deployment |
+| --- | --- | --- |
+| Pull request into any branch | Full CI | No |
+| Push or merge into `development` | Full CI | No |
+| Push or merge into `production` | Full CI, then release | Yes, after checks pass |
+
+Create `development` and `production` branches in GitHub if they do not exist.
+Protect both branches with required CI checks and PR reviews. Set the GitHub
+`production` environment's deployment branch rule to allow only `production`.
+The environment name remains `production`; OIDC trust using the environment
+subject remains unchanged. AWS configuration is required only for the production
+release job. Development CI runs without AWS credentials.
