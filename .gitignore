@@ -251,3 +251,7 @@ Thumbs.db
 kubeconfig*
 *.secret.env
 k8s/*secret.local.yaml
+
+# Local health snapshots, archives, and advisory lock
+health_log.txt
+health_log.txt.*

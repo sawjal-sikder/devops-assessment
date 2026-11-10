@@ -1,0 +1,11 @@
+[Unit]
+Description=Collect Linux host health every five minutes
+
+[Timer]
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+AccuracySec=1s
+Unit=system-health.service
+
+[Install]
+WantedBy=timers.target

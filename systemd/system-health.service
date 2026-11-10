@@ -1,0 +1,18 @@
+[Unit]
+Description=Collect Linux host health and rotate the health log
+Documentation=file:/opt/devops-task/README.md
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/devops-task/scripts/system_health.sh --json --log-file /var/log/system-health/health_log.txt
+LogsDirectory=system-health
+LogsDirectoryMode=0750
+UMask=0027
+TimeoutStartSec=120
+SuccessExitStatus=1
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+RestrictAddressFamilies=AF_UNIX
+StandardOutput=journal
+StandardError=journal
