@@ -1,0 +1,32 @@
+aws_vpc_security_group_ingress_rule.app["103.186.20.3/32"]: Destroying... [id=sgr-055a650b2ea30317f]
+aws_instance.app: Destroying... [id=i-056b6859612f4a67d]
+aws_vpc_security_group_ingress_rule.app["103.186.20.3/32"]: Destruction complete after 1s
+aws_instance.app: Still destroying... [id=i-056b6859612f4a67d, 00m10s elapsed]
+aws_instance.app: Still destroying... [id=i-056b6859612f4a67d, 00m20s elapsed]
+aws_instance.app: Still destroying... [id=i-056b6859612f4a67d, 00m30s elapsed]
+aws_instance.app: Destruction complete after 32s
+aws_route_table_association.app: Destroying... [id=rtbassoc-02e5a134c3dc48007]
+aws_iam_role_policy.app: Destroying... [id=devops-task-staging:terraform-6f0c924a5de29fed8ef8a7ca7a]
+aws_iam_instance_profile.app: Destroying... [id=terraform-f1d2934896fce942b9d4830804]
+aws_vpc_security_group_egress_rule.https: Destroying... [id=sgr-09538200b437786cb]
+aws_vpc_security_group_egress_rule.https: Destruction complete after 0s
+aws_security_group.app: Destroying... [id=sg-0c53da731e3d050d2]
+aws_route_table_association.app: Destruction complete after 0s
+aws_route_table.app: Destroying... [id=rtb-07a873c1dd8f32353]
+aws_subnet.app: Destroying... [id=subnet-0a787c6df1ca22a42]
+aws_iam_role_policy.app: Destruction complete after 1s
+aws_cloudwatch_log_group.app: Destroying... [id=/devops-task/staging/app]
+aws_iam_instance_profile.app: Destruction complete after 1s
+aws_iam_role.app: Destroying... [id=devops-task-staging]
+aws_subnet.app: Destruction complete after 2s
+aws_security_group.app: Destruction complete after 2s
+aws_cloudwatch_log_group.app: Destruction complete after 1s
+aws_iam_role.app: Destruction complete after 1s
+aws_route_table.app: Destruction complete after 3s
+aws_internet_gateway.app: Destroying... [id=igw-0bd4dfd8729eabfdd]
+aws_internet_gateway.app: Destruction complete after 1s
+aws_vpc.app: Destroying... [id=vpc-0fa1aab52fa73846b]
+aws_vpc.app: Destruction complete after 1s
+Releasing state lock. This may take a few moments...
+
+Apply complete! Resources: 0 added, 0 changed, 13 destroyed.

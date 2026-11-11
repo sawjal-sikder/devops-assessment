@@ -1,0 +1,29 @@
+data.aws_availability_zones.available: Reading...
+data.aws_ecr_repository.app: Reading...
+data.aws_ssm_parameter.ami: Reading...
+data.aws_iam_policy_document.assume_ec2: Reading...
+aws_cloudwatch_log_group.app: Refreshing state... [id=/devops-task/staging/app]
+aws_vpc.app: Refreshing state... [id=vpc-0fa1aab52fa73846b]
+data.aws_iam_policy_document.assume_ec2: Read complete after 0s [id=2851119427]
+aws_iam_role.app: Refreshing state... [id=devops-task-staging]
+data.aws_ssm_parameter.ami: Read complete after 1s [id=/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64]
+data.aws_availability_zones.available: Read complete after 1s [id=us-east-1]
+data.aws_ecr_repository.app: Read complete after 2s [id=devops-task-assessment]
+data.aws_iam_policy_document.app: Reading...
+data.aws_iam_policy_document.app: Read complete after 0s [id=3521671979]
+aws_iam_role_policy.app: Refreshing state... [id=devops-task-staging:terraform-6f0c924a5de29fed8ef8a7ca7a]
+aws_iam_instance_profile.app: Refreshing state... [id=terraform-f1d2934896fce942b9d4830804]
+aws_internet_gateway.app: Refreshing state... [id=igw-0bd4dfd8729eabfdd]
+aws_security_group.app: Refreshing state... [id=sg-0c53da731e3d050d2]
+aws_subnet.app: Refreshing state... [id=subnet-0a787c6df1ca22a42]
+aws_route_table.app: Refreshing state... [id=rtb-07a873c1dd8f32353]
+aws_vpc_security_group_ingress_rule.app["103.186.20.3/32"]: Refreshing state... [id=sgr-055a650b2ea30317f]
+aws_vpc_security_group_egress_rule.https: Refreshing state... [id=sgr-09538200b437786cb]
+aws_route_table_association.app: Refreshing state... [id=rtbassoc-02e5a134c3dc48007]
+aws_instance.app: Refreshing state... [id=i-056b6859612f4a67d]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+Releasing state lock. This may take a few moments...

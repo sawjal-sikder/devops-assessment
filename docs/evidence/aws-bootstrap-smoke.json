@@ -1,0 +1,22 @@
+{
+  "CommandId": "664b9ee0-520c-458d-a2ac-aaeb0f21e901",
+  "InstanceId": "i-056b6859612f4a67d",
+  "Comment": "Assessment bootstrap and container health evidence",
+  "DocumentName": "AWS-RunShellScript",
+  "DocumentVersion": "$DEFAULT",
+  "PluginName": "aws:runShellScript",
+  "ResponseCode": 0,
+  "ExecutionStartDateTime": "2026-11-11T06:40:26.195Z",
+  "ExecutionElapsedTime": "PT0.991S",
+  "ExecutionEndDateTime": "2026-11-11T06:40:26.195Z",
+  "Status": "Success",
+  "StatusDetails": "Success",
+  "StandardOutputContent": "\nstatus: done\n\u25cf devops-bootstrap.service - Initial DevOps Task container deployment\n     Loaded: loaded (/etc/systemd/system/devops-bootstrap.service; enabled; preset: disabled)\n     Active: active (exited) since Wed 2026-11-11 06:39:57 UTC; 29s ago\n    Process: 8851 ExecStart=/usr/local/bin/devops-bootstrap (code=exited, status=0/SUCCESS)\n   Main PID: 8851 (code=exited, status=0/SUCCESS)\n        CPU: 880ms\n\nNov 11 06:39:50 ip-10-42-1-145.ec2.internal devops-bootstrap[11084]: e92cdbcaff85: Pull complete\nNov 11 06:39:50 ip-10-42-1-145.ec2.internal devops-bootstrap[11084]: Digest: sha256:5ace918f43d45ff8bfd7cd8aa5120769a9272b802ea9622db954fbcd561f62b4\nNov 11 06:39:50 ip-10-42-1-145.ec2.internal devops-bootstrap[11084]: Status: Downloaded newer image for 809554585560.dkr.ecr.us-east-1.amazonaws.com/devops-task-assessment@sha256:5ace918f43d45ff8bfd7cd8aa5120769a9272b802ea9622db954fbcd561f62b4\nNov 11 06:39:50 ip-10-42-1-145.ec2.internal devops-bootstrap[11084]: 809554585560.dkr.ecr.us-east-1.amazonaws.com/devops-task-assessment@sha256:5ace918f43d45ff8bfd7cd8aa5120769a9272b802ea9622db954fbcd561f62b4\nNov 11 06:39:50 ip-10-42-1-145.ec2.internal devops-bootstrap[16622]: aa33fabfc01eba4a061a5f8dcb40906481556ddc11169758a0cb96ec0805d494\nNov 11 06:39:51 ip-10-42-1-145.ec2.internal devops-bootstrap[17483]: curl: (56) Recv failure: Connection reset by peer\nNov 11 06:39:53 ip-10-42-1-145.ec2.internal devops-bootstrap[20604]: curl: (56) Recv failure: Connection reset by peer\nNov 11 06:39:55 ip-10-42-1-145.ec2.internal devops-bootstrap[23320]: curl: (56) Recv failure: Connection reset by peer\nNov 11 06:39:57 ip-10-42-1-145.ec2.internal devops-bootstrap[25927]: {\"status\":\"healthy\"}\nNov 11 06:39:57 ip-10-42-1-145.ec2.internal systemd[1]: Finished devops-bootstrap.service - Initial DevOps Task container deployment.\nhealthy\n{\"status\":\"healthy\"}\nawslogs\n",
+  "StandardOutputUrl": "",
+  "StandardErrorContent": "",
+  "StandardErrorUrl": "",
+  "CloudWatchOutputConfig": {
+    "CloudWatchLogGroupName": "",
+    "CloudWatchOutputEnabled": false
+  }
+}

@@ -1,0 +1,36 @@
+{
+    "events": [
+        {
+            "timestamp": 1794379381151,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.150979+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.error\", \"environment\": \"production\", \"message\": \"Started server process [1]\"}"
+        },
+        {
+            "timestamp": 1794379381151,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.151233+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.error\", \"environment\": \"production\", \"message\": \"Waiting for application startup.\"}"
+        },
+        {
+            "timestamp": 1794379381152,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.152159+00:00\", \"level\": \"INFO\", \"logger\": \"app.main\", \"environment\": \"production\", \"message\": \"application_started\"}"
+        },
+        {
+            "timestamp": 1794379381152,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.152310+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.error\", \"environment\": \"production\", \"message\": \"Application startup complete.\"}"
+        },
+        {
+            "timestamp": 1794379381152,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.152700+00:00\", \"level\": \"INFO\", \"logger\": \"uvicorn.error\", \"environment\": \"production\", \"message\": \"Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)\"}"
+        },
+        {
+            "timestamp": 1794379381846,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.845708+00:00\", \"level\": \"INFO\", \"logger\": \"app.metrics\", \"environment\": \"production\", \"message\": \"request_completed\", \"method\": \"GET\", \"path\": \"/health\", \"status_code\": 200, \"duration_seconds\": 0.0010758220000184338}"
+        },
+        {
+            "timestamp": 1794379381855,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:01.854936+00:00\", \"level\": \"INFO\", \"logger\": \"app.metrics\", \"environment\": \"production\", \"message\": \"request_completed\", \"method\": \"GET\", \"path\": \"/\", \"status_code\": 200, \"duration_seconds\": 0.0009433239999907528}"
+        },
+        {
+            "timestamp": 1794379408690,
+            "message": "{\"timestamp\": \"2026-11-11T06:43:28.689983+00:00\", \"level\": \"INFO\", \"logger\": \"app.metrics\", \"environment\": \"production\", \"message\": \"request_completed\", \"method\": \"GET\", \"path\": \"/health\", \"status_code\": 200, \"duration_seconds\": 0.00048093399999515896}"
+        }
+    ]
+}

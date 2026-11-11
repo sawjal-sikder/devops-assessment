@@ -1,5 +1,10 @@
 # DevOps Task — FastAPI
 
+> The active GitHub Actions workflow now publishes to GHCR and deploys over SSH.
+> Follow [EC2 SSH deployment](docs/ssh-deployment.md) for setup. The SSM/ECR
+> sections below describe the alternative Terraform deployment path; they are
+> no longer the active GitHub Actions workflow.
+
 A small service with JSON stdout logs, Prometheus metrics, environment configuration,
 and graceful SIGTERM shutdown.
 
@@ -37,8 +42,8 @@ not the Kubernetes pods or the remote EC2 instance.
 ```mermaid
 flowchart TB
   Commit[Code commit / pull request] --> PR[CI: lint, tests, coverage, Docker build, Trivy CRITICAL gate]
-  PR --> Merge[Reviewed merge: development to production]
-  Merge --> Checks[Repeat CI on production push]
+  PR --> Merge[Reviewed merge into main]
+  Merge --> Checks[Repeat CI on main push]
   Checks --> Build[Buildx: amd64 + arm64, cached layers, SHA + semantic tags]
   Build --> ECR[Amazon ECR: immutable deployment digest]
   Build --> OIDC[GitHub OIDC: temporary AWS credentials]
@@ -176,29 +181,30 @@ and the [Prometheus Python client histogram documentation](https://prometheus.gi
 
 Pull requests run linting, tests with an 85% coverage gate and downloadable reports,
 Dockerfile/ShellCheck linting, and a Trivy image scan that blocks CRITICAL findings.
-Pushes to `production` pass those checks, publish amd64/arm64 images to ECR with commit
+Pushes to `main` pass those checks, publish amd64/arm64 images to ECR with commit
 SHA and semantic version tags, and deploy via GitHub OIDC and SSM with health-based
 rollback. See [AWS and CI/CD setup](docs/terraform.md) for required GitHub variables, IAM policies,
 EC2 prerequisites, tagging, rollback behavior, and deployment evidence. No GitHub
 secrets or long-lived AWS access keys are required.
 
 
-## Development and production branches
+## Branches and production environment
 
-Use `feature/*` → pull request into `development` → pull request into `production`.
+Use `feature/*` → pull request into `main`. The repository does not need separate
+`development` or `production` branches. This matches the assessment's requirement
+to deploy on a push to `main`.
 
 | Event | Checks | Publish and AWS deployment |
 | --- | --- | --- |
 | Pull request into any branch | Full CI | No |
-| Push or merge into `development` | Full CI | No |
-| Push or merge into `production` | Full CI, then release | Yes, after checks pass |
+| Push or merge into `main` | Full CI through the reusable workflow, then release | Yes, after checks pass |
+| Push to another branch without a PR | No automatic deployment | No |
 
-Create `development` and `production` branches in GitHub if they do not exist.
-Protect both branches with required CI checks and PR reviews. Set the GitHub
-`production` environment's deployment branch rule to allow only `production`.
-The environment name remains `production`; OIDC trust using the environment
-subject remains unchanged. AWS configuration is required only for the production
-release job. Development CI runs without AWS credentials.
+Protect `main` with required CI checks and PR reviews. Set the GitHub **production
+environment** deployment branch rule to allow only `main`. The environment remains
+named `production`; it is not a branch. Its OIDC environment subject stays the
+same. Commit the root `VERSION` file (currently `1.0.0`) with release changes; CI
+validates its numeric semantic base version before the release workflow uses it.
 
 
 ## Step 3: Terraform on AWS
@@ -211,9 +217,23 @@ uses separate environment state keys and S3 lock files. No static AWS keys are u
 
 Follow [the Terraform guide](docs/terraform.md) for SSO authentication, initial ECR
 publishing, backend setup, plan/apply, health/log checks, and destroy commands.
-Both roots pass validation; [offline test output](docs/evidence/terraform-test.txt)
-records four mocked plan tests. **No real AWS plan/apply has been run** because no
-AWS account/access was provided. These tests are not evidence of an AWS apply.
+A real AWS validation run was completed on **2026-11-11**:
+[initial plan](docs/evidence/terraform-plan.txt) (13 resources),
+[successful apply](docs/evidence/terraform-apply.txt), and a
+[clean post-apply plan](docs/evidence/terraform-plan-no-changes.txt) reporting no
+changes. [SSM deployment evidence](docs/evidence/aws-ssm-deploy.json) records a
+manual deployment through the same repository scripts to version `1.0.1`, with
+successful `/health` and `/` checks and a retained previous image.
+[CloudWatch events](docs/evidence/aws-cloudwatch-logs.json) verify log delivery.
+The temporary staging deployment, ECR repository, and state bucket were destroyed
+after testing; [cleanup verification](docs/evidence/aws-cleanup.json) and
+[the evidence index](docs/evidence/README.md) record the results.
+
+**Remaining evidence requirement:** a successful GitHub Actions deploy run has not
+yet been captured. The manual SSM result is not a substitute for a workflow run.
+Commit/push these fixes (including `VERSION`) to `main`, configure the production
+environment to allow `main`, and retain the successful run URL and deployment
+artifact. [Offline tests](docs/evidence/terraform-test.txt) remain supplemental.
 
 ## Step 4: Local Kubernetes
 
@@ -743,9 +763,9 @@ CI's ShellCheck step covers this script too. Full-suite results are captured in
 
 ## Deployment & Rollback Strategy
 
-Feature changes reach `development` through reviewed pull requests. PRs and
-`development` pushes run CI without AWS access. A reviewed merge into `production`
-runs the checks again; required branch checks and the production environment's
+Feature changes reach `main` through reviewed pull requests. PR checks run
+without AWS access. A reviewed merge into `main` runs the checks again; required
+branch checks and the production environment's
 branch restriction should prevent bypassing this process. Configure required
 reviewers if the release policy requires manual approval.
 
@@ -860,9 +880,9 @@ Sources: [EC2 T3 rates](https://aws.amazon.com/ec2/instance-types/t3/),
 
 ## What I Would Improve with More Time
 
-- Run an authorized AWS plan/apply, confirm bootstrap/SSM/CloudWatch end to end,
-  retain real deployment/rollback evidence, then destroy the assessment resources.
-  Current AWS evidence remains validation and mocked plans, not a successful apply.
+- Complete an authenticated GitHub Actions deployment run and retain its successful
+  run URL/artifact. Real AWS plan/apply, bootstrap, manual SSM deployment, and
+  CloudWatch checks are now captured separately; they do not prove a GitHub run.
 - Add TLS, multi-AZ capacity/load balancing, and blue/green or canary promotion so
   EC2 releases can preserve availability; benchmark before choosing ECS or EKS.
 - Scan both release architectures and every monitoring image on a schedule,
@@ -885,6 +905,7 @@ Sources: [EC2 T3 rates](https://aws.amazon.com/ec2/instance-types/t3/),
 OpenAI Codex assisted with implementation, troubleshooting, tests, and documentation.
 The result was checked with automated tests, lint/configuration validators, live
 Docker metrics/log queries, and the recorded kind rollout/rollback. Screenshots
-show the running local dashboards. No successful AWS apply or deployment is
-claimed without an authorized AWS run. AI assistance does not replace the
+show the running local dashboards. Real AWS plan/apply and manual SSM deployment
+were verified on 2026-11-11; successful GitHub Actions deployment evidence is still
+pending. AI assistance does not replace the
 submitter's review and ability to explain the code and trade-offs.

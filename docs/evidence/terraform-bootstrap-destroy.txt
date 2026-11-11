@@ -1,0 +1,12 @@
+aws_s3_bucket_public_access_block.state: Destroying... [id=devops-task-state-809554585560-b768189f]
+aws_s3_bucket_policy.state: Destroying... [id=devops-task-state-809554585560-b768189f]
+aws_s3_bucket_versioning.state: Destroying... [id=devops-task-state-809554585560-b768189f]
+aws_s3_bucket_server_side_encryption_configuration.state: Destroying... [id=devops-task-state-809554585560-b768189f]
+aws_s3_bucket_server_side_encryption_configuration.state: Destruction complete after 1s
+aws_s3_bucket_versioning.state: Destruction complete after 1s
+aws_s3_bucket_public_access_block.state: Destruction complete after 1s
+aws_s3_bucket_policy.state: Destruction complete after 2s
+aws_s3_bucket.state: Destroying... [id=devops-task-state-809554585560-b768189f]
+aws_s3_bucket.state: Destruction complete after 1s
+
+Apply complete! Resources: 0 added, 0 changed, 5 destroyed.

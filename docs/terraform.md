@@ -141,13 +141,14 @@ coordinate later Terraform image changes rather than applying an obsolete digest
 
 In GitHub's `production` environment configure variables `AWS_REGION`,
 `AWS_ROLE_ARN`, `ECR_REPOSITORY`, and `EC2_INSTANCE_ID` (from Terraform's output).
-Restrict the environment to the `production` branch. The OIDC role trust must
+Restrict the environment to the `main` branch. The environment remains named
+`production`; the branch trigger is `main`. The OIDC role trust must
 allow audience `sts.amazonaws.com` and subject
-`repo:sawjal-sikder/devops-engineer-task:environment:production` (adjust if renamed).
+`repo:sawjal-sikder/devops-assessment:environment:production` (the canonical repository is `sawjal-sikder/devops-assessment`; adjust if renamed).
 Give that role ECR push actions scoped to this repository, ECR token acquisition,
 `ssm:SendCommand` scoped to this instance and the AWS-RunShellScript document, and
 `ssm:GetCommandInvocation` for results. The EC2 role is already supplied by this
-Terraform root. No GitHub secret or SSH key is needed. Development CI uses no AWS.
+Terraform root. No GitHub secret or SSH key is needed. Pull-request CI uses no AWS.
 
 ## Destroy after testing
 
@@ -185,9 +186,28 @@ mock AWS provider: staging/production plans and invalid-input checks. Both roots
 also pass `terraform validate`. Mocks do not contact AWS and do not verify live IAM,
 AMI availability, bootstrapping, SSM registration, or CloudWatch delivery. The IAM
 policy-document data sources are mocked as JSON, so tests do not prove live policy
-behavior. No real AWS plan/apply/destroy has been run because no AWS account or
-credentials were supplied. An authorized AWS run is still required for assessment
-apply evidence. No AWS resources were created here.
+behavior. On 2026-11-11 an authorized AWS run produced a real
+[13-resource plan](evidence/terraform-plan.txt),
+[successful apply](evidence/terraform-apply.txt), and
+[post-apply no-change plan](evidence/terraform-plan-no-changes.txt). The new EC2
+instance registered with SSM; [bootstrap and health checks](evidence/aws-bootstrap-smoke.json)
+succeeded. A [manual SSM deployment](evidence/aws-ssm-deploy.json) of version 1.0.1
+through `scripts/ssm_payload.py`/`deploy.sh` succeeded, retaining version 1.0.0 for
+recovery. [CloudWatch log events](evidence/aws-cloudwatch-logs.json) confirm the
+instance role and Docker logging integration worked.
+
+The run created a separate temporary `devops-task-assessment` ECR repository and
+unique state bucket. The staging deployment was destroyed immediately after
+capturing evidence; [the evidence index](evidence/README.md) records the final
+cleanup results. Saved evidence contains resource IDs and public endpoints, not
+AWS access keys, registry tokens, or Terraform state/plan binaries.
+
+GitHub Actions execution is a separate remaining requirement: the successful
+manual SSM command must not be presented as a successful GitHub workflow run.
+After committing these fixes to `main`, configure GitHub's production environment
+for that branch, run the release with a valid OIDC role/instance, and retain its
+successful run URL and deployment artifact. The temporary instance from this
+validation is not intended to remain a deploy target after cleanup.
 
 CloudWatch integration follows Docker's
 [awslogs driver documentation](https://docs.docker.com/engine/logging/drivers/awslogs/).

@@ -1,6 +1,6 @@
 services:
   app:
-    image: devops-task:1.0.0
+    image: ${DOCKER_IMAGE:-devops-task:1.0.0}
     build:
       context: .
       args:
